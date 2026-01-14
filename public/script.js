@@ -193,40 +193,48 @@ async function processImages() {
       return { inlineData: { data: base64Data, mimeType } };
     });
 
-    const prompt = `
-      Bạn là dược sĩ AI chuyên nghiệp. Hãy phân tích hình ảnh thuốc (mặt trước và mặt sau/mã vạch) và cung cấp thông tin chi tiết.
+      Bạn là dược sĩ AI chuyên nghiệp.Hãy phân tích hình ảnh thuốc(mặt trước và mặt sau / mã vạch) và cung cấp thông tin chi tiết.
 
-      Yêu cầu trả về JSON thuần túy (không có markdown code block) với cấu trúc sau:
-      {
-        "identity": {
-          "name": "Tên thuốc",
+      Yêu cầu trả về JSON thuần túy(không có markdown code block) với cấu trúc sau:
+    {
+      "identity": {
+        "name": "Tên thuốc",
           "active_ingredient": "Hoạt chất chính",
-          "manufacturer": "Nhà sản xuất",
-          "confidence": 0.95
-        },
-        "details": {
-          "usage": "Chỉ định (Công dụng)",
-          "dosage": "Liều dùng tham khảo",
-          "contraindications": "Chống chỉ định (quan trọng)",
-          "side_effects": "Tác dụng phụ thường gặp"
-        },
-        "warnings": ["Lưu ý quan trọng 1", "Lưu ý quan trọng 2"],
+            "manufacturer": "Nhà sản xuất",
+              "confidence": 0.95
+      },
+      "details": {
+        "usage": "Chỉ định (Công dụng)",
+          "dosage": [
+            "Sơ sinh: ...",
+            "Trẻ em 1-5 tuổi: ...",
+            "Người lớn: ..."
+          ],
+            "contraindications": "Chống chỉ định (quan trọng)",
+              "side_effects": "Tác dụng phụ thường gặp"
+      },
+      "warnings": ["Lưu ý quan trọng 1", "Lưu ý quan trọng 2"],
         "search_fallback": {
-            "query": "Tên thuốc chính xác để tìm kiếm",
-            "suggested_links": [
-                {"title": "Long Châu", "url": "link tìm kiếm tại nhathuoclongchau.com.vn"},
-                {"title": "Vinmec", "url": "link tìm kiếm tại vinmec.com"},
-                {"title": "Pharmacity", "url": "link tìm kiếm tại pharmacity.vn"}
-            ]
-        }
+        "query": "Tên thuốc chính xác để tìm kiếm",
+          "suggested_links": [
+            { "title": "Long Châu", "url": "link tìm kiếm tại nhathuoclongchau.com.vn" },
+            { "title": "Vinmec", "url": "link tìm kiếm tại vinmec.com" },
+            { "title": "Pharmacity", "url": "link tìm kiếm tại pharmacity.vn" }
+          ]
       }
+    }
 
-      Nếu không nhận diện được rõ ràng, hãy để confidence thấp và cung cấp "search_fallback" mạnh mẽ để người dùng tự tra cứu trên các trang uy tín sau: ${TRUSTED_SITES.join(', ')}.
+      LƯU Ý QUAN TRỌNG VỀ LIỀU DÙNG:
+    - Bắt buộc phân chia liều dùng theo từng nhóm tuổi / đối tượng cụ thể.
+      - Sắp xếp thứ tự từ nhỏ đến lớn: Sơ sinh -> Trẻ em(chia theo mốc tuổi) -> Người lớn -> Người già / Suy gan thận(nếu có).
+      - Nếu thuốc không dùng cho đối tượng nào(ví dụ trẻ em), hãy ghi rõ "Chống chỉ định".
+
+      Nếu không nhận diện được rõ ràng, hãy để confidence thấp và cung cấp "search_fallback" mạnh mẽ để người dùng tự tra cứu trên các trang uy tín sau: ${ TRUSTED_SITES.join(', ') }.
     `;
 
     const result = await model.generateContent([prompt, ...imageParts]);
     const response = await result.response;
-    const text = response.text().replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
+    const text = response.text().replace(/^```json\n ? /, '').replace(/\n ? ```$/, '').trim();
 
     const data = JSON.parse(text);
     displayResult(data);
@@ -234,11 +242,11 @@ async function processImages() {
   } catch (err) {
     console.error(err);
     resultsDiv.classList.remove('hidden');
-    resultsDiv.innerHTML = `<div class="error-msg">
+    resultsDiv.innerHTML = `< div class="error-msg" >
       <h3>⚠️ Có lỗi xảy ra</h3>
       <p>${err.message}</p>
       <button class="outline-btn" onclick="location.reload()">Thử lại</button>
-    </div>`;
+    </div > `;
   } finally {
     loadingOverlay.classList.add('hidden');
     // Reset state for new scan
@@ -259,9 +267,9 @@ function displayResult(data) {
 
   if (!data || !data.identity || data.identity.confidence < 0.4) {
     resultsDiv.innerHTML = `
-      <h3>⚠️ Không nhận diện được thuốc</h3>
-      <p>Hình ảnh có thể bị mờ hoặc không rõ tên thuốc.</p>
-      ${data?.search_fallback ? buildFallbackLinks(data.search_fallback) : ''}
+      < h3 >⚠️ Không nhận diện được thuốc</h3 >
+        <p>Hình ảnh có thể bị mờ hoặc không rõ tên thuốc.</p>
+      ${ data?.search_fallback ? buildFallbackLinks(data.search_fallback) : '' }
     `;
     return;
   }
@@ -269,13 +277,19 @@ function displayResult(data) {
   const { identity, details, warnings, search_fallback } = data;
 
   let html = `
-    <h3>💊 ${identity.name}</h3>
+      < h3 >💊 ${ identity.name }</h3 >
     <p><strong>Hoạt chất:</strong> ${identity.active_ingredient}</p>
     <p><strong>NSX:</strong> ${identity.manufacturer}</p>
     <hr style="border: 0; border-top: 1px solid var(--border); margin: 10px 0;">
     
     <p><strong>Chỉ định:</strong> ${details.usage}</p>
-    <p><strong>Liều dùng:</strong> ${details.dosage}</p>
+    <div style="margin: 10px 0;">
+        <strong>Liều dùng:</strong>
+        ${Array.isArray(details.dosage) 
+          ? `<ul style="margin: 5px 0 0 20px; color: var(--text-secondary); list-style-type: disc;">${details.dosage.map(d => `<li>${d}</li>`).join('')}</ul>`
+          : `<p style="display:inline;">${details.dosage}</p>`
+        }
+    </div>
     <p><strong>Chống chỉ định:</strong> ${details.contraindications}</p>
   `;
 
