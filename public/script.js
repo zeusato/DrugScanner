@@ -259,6 +259,10 @@ async function processImages() {
       window.location.reload();
     };
     instructionsDiv.innerHTML = '<p>Đã hoàn thành.</p>';
+    // Auto-scroll to show the "Scan New" button at top and results below
+    setTimeout(() => {
+      scanButton.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 300);
   }
 }
 
