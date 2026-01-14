@@ -1,0 +1,21 @@
+{
+  "name": "drug-pwa",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PWA for scanning drug labels and barcodes to retrieve medication information via open data sources and Gemini.",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "engines": {
+    "node": "18.x"
+  },
+  "type": "module",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "express": "^4.21.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  }
+}

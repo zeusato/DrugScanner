@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Drug Lookup</title>
+  <!-- PWA manifest -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#0d9488" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+
+<body>
+  <header class="app-header">
+    <h1>Drug Scanner</h1>
+  </header>
+  <main>
+    <!-- Scan container shows the camera preview and capture controls -->
+    <section id="scan-container" class="hidden">
+      <video id="camera" autoplay playsinline></video>
+      <div id="overlay" class="overlay">
+        <span class="scan-line"></span>
+        <p class="overlay-text">Di chuyển camera vào vùng cần quét</p>
+      </div>
+      <button id="capture-btn" class="icon-btn change-trigger">
+        <span class="material-symbols-rounded">camera</span>
+      </button>
+    </section>
+
+    <!-- Start screen shown before scanning -->
+    <section id="start-container" class="fade-in">
+      <div class="start-content">
+        <div class="logo-circle">
+          <span class="material-symbols-rounded">medication</span>
+        </div>
+        <h2>Drug Scanner</h2>
+        <p>Quét thuốc để tra cứu thông tin nhanh chóng</p>
+        <button id="start-scan" class="primary-btn">
+          <span class="material-symbols-rounded">qr_code_scanner</span>
+          Bắt đầu quét
+        </button>
+      </div>
+    </section>
+
+    <!-- Preview & submit screen shows thumbnails and a submit button -->
+    <section id="preview-container" class="hidden fade-in">
+      <div class="preview-grid">
+        <div class="preview-item">
+          <img id="preview1" alt="Ảnh nhãn thuốc" />
+          <span class="badge">Mặt trước</span>
+        </div>
+        <div class="preview-item">
+          <img id="preview2" alt="Ảnh mã vạch hoặc bổ sung" />
+          <span class="badge">Mặt sau/Mã vạch</span>
+        </div>
+      </div>
+      <div class="action-buttons">
+        <button id="submit-btn" class="primary-btn">
+          <span class="material-symbols-rounded">search</span>
+          Tra cứu
+        </button>
+        <button id="retake-btn" class="secondary-btn">
+          <span class="material-symbols-rounded">replay</span>
+          Chụp lại
+        </button>
+      </div>
+    </section>
+
+    <!-- Results display -->
+    <section id="result-container" class="hidden fade-in">
+      <div id="result-content"></div>
+      <button id="new-scan" class="primary-btn floating-btn">
+        <span class="material-symbols-rounded">center_focus_weak</span>
+        Quét tiếp
+      </button>
+    </section>
+  </main>
+
+  <!-- Loading overlay -->
+  <div id="loading-overlay" class="loading-overlay hidden">
+    <div class="spinner"></div>
+    <p>Đang xử lý...</p>
+  </div>
+
+  <!-- Modal for Gemini API key -->
+  <div id="api-modal" class="modal hidden">
+    <div class="modal-content">
+      <h2>Nhập khóa Gemini API</h2>
+      <p>Chúng tôi chỉ lưu khóa trên thiết bị của bạn để sử dụng khi cần.</p>
+      <input type="password" id="api-key-input" placeholder="Enter API Key" />
+      <div class="modal-actions">
+        <button id="save-api-key" class="primary-btn">Lưu</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/script.js" type="module"></script>
+</body>
+
+</html>
