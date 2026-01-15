@@ -472,15 +472,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   deleteKeyButton.onclick = async () => { await deleteKey(); hideModal(settingsModal); showModal(keyModal); keyStatus.textContent = 'Chưa có khóa API.'; };
   closeSettingsModalButton.onclick = () => hideModal(settingsModal);
 
-  // Restore Session
-  const restored = await loadSession();
-  if (restored && imageCounter >= 2) {
-    if (imageCounter >= 2) {
-      processImages(); // Resume processing
-    } else {
-      showCurrentStep();
-    }
-  } else {
-    showCurrentStep();
-  }
+  // Always start fresh on load (prevent auto-query or partial state restoration)
+  showCurrentStep();
 });
