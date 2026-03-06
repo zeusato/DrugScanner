@@ -25,6 +25,9 @@ const retakeButton = document.getElementById('retakeButton');
 const confirmButton = document.getElementById('confirmButton');
 const loadingOverlay = document.getElementById('loadingOverlay');
 const loadingText = document.getElementById('loadingText');
+const exportActions = document.getElementById('exportActions');
+const exportPdfButton = document.getElementById('exportPdfButton');
+const exportImageButton = document.getElementById('exportImageButton');
 
 // Session Key
 const SESSION_ID = 'drug_scanner_session';
@@ -34,6 +37,7 @@ let imageCounter = 0; // 0: Front Label, 1: Back/Barcode
 let capturedImages = [];
 let currentDraft = null;
 let isProcessingFile = false;
+let lastResult = null;
 
 // Instructions for each step
 const INSTRUCTIONS = [
@@ -112,7 +116,9 @@ scanButton.addEventListener('click', async (e) => {
     await clearSession();
     imageCounter = 0;
     capturedImages = [];
+    lastResult = null;
     resultsDiv.innerHTML = '';
+    exportActions.classList.add('hidden');
     showCurrentStep();
     return;
   }
@@ -238,7 +244,9 @@ async function processImages() {
     const text = response.text().replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
 
     const data = JSON.parse(text);
+    lastResult = data;
     displayResult(data);
+    exportActions.classList.remove('hidden');
 
   } catch (err) {
     console.error(err);
@@ -475,3 +483,160 @@ window.addEventListener('DOMContentLoaded', async () => {
   // Always start fresh on load (prevent auto-query or partial state restoration)
   showCurrentStep();
 });
+
+// ========== EXPORT: PDF ==========
+exportPdfButton.addEventListener('click', () => exportPDF());
+
+async function exportPDF() {
+  if (!lastResult) return;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('p', 'mm', 'a4');
+  const W = 210, H = 297;
+  const M = 15;
+  const CW = W - M * 2;
+  let y = M;
+
+  function addText(text, size, style, color, maxW) {
+    doc.setFontSize(size);
+    doc.setFont('helvetica', style);
+    doc.setTextColor(...color);
+    const lines = doc.splitTextToSize(text, maxW || CW);
+    if (y + lines.length * (size * 0.45) > H - M) {
+      doc.addPage();
+      y = M;
+    }
+    doc.text(lines, M, y);
+    y += lines.length * (size * 0.45) + 2;
+  }
+
+  function addLine() {
+    doc.setDrawColor(200);
+    doc.line(M, y, W - M, y);
+    y += 4;
+  }
+
+  // -- Header --
+  doc.setFillColor(13, 148, 136); // teal-600
+  doc.rect(0, 0, W, 32, 'F');
+  doc.setFontSize(20);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(255, 255, 255);
+  doc.text('Drug Scanner', M, 15);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(200, 240, 235);
+  const now = new Date();
+  doc.text(`Bao cao phan tich - ${now.toLocaleDateString('vi-VN')} ${now.toLocaleTimeString('vi-VN')}`, M, 23);
+  y = 40;
+
+  // -- Captured Images --
+  if (capturedImages.length > 0) {
+    addText('ANH DA CHUP', 12, 'bold', [13, 148, 136]);
+    y += 2;
+    const imgW = (CW - 4) / 2;
+    const imgH = imgW * 1.1;
+    const labels = ['Mat truoc', 'Mat sau / Ma vach'];
+    capturedImages.forEach((dataUri, i) => {
+      const x = M + i * (imgW + 4);
+      try {
+        doc.addImage(dataUri, 'JPEG', x, y, imgW, imgH);
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'italic');
+        doc.setTextColor(120, 120, 120);
+        doc.text(labels[i] || `Anh ${i + 1}`, x + imgW / 2, y + imgH + 4, { align: 'center' });
+      } catch (e) {
+        console.warn('[PDF] Image insert failed:', e);
+      }
+    });
+    y += imgH + 10;
+    addLine();
+  }
+
+  // -- Identity --
+  if (lastResult.identity) {
+    const id = lastResult.identity;
+    addText('NHAN DIEN THUOC', 12, 'bold', [13, 148, 136]);
+    if (id.name) addText(`Ten thuoc: ${id.name}`, 11, 'normal', [40, 40, 40]);
+    if (id.active_ingredient) addText(`Hoat chat: ${id.active_ingredient}`, 10, 'normal', [90, 90, 90]);
+    if (id.manufacturer) addText(`Nha san xuat: ${id.manufacturer}`, 10, 'normal', [90, 90, 90]);
+    if (id.confidence) addText(`Do tin cay: ${Math.round(id.confidence * 100)}%`, 10, 'normal', [90, 90, 90]);
+    y += 2;
+    addLine();
+  }
+
+  // -- Details --
+  if (lastResult.details) {
+    const d = lastResult.details;
+    addText('THONG TIN CHI TIET', 12, 'bold', [13, 148, 136]);
+    if (d.usage) addText(`Chi dinh: ${d.usage}`, 10, 'normal', [40, 40, 40]);
+    if (d.dosage) {
+      addText('Lieu dung:', 10, 'bold', [40, 40, 40]);
+      const doses = Array.isArray(d.dosage) ? d.dosage : [d.dosage];
+      doses.forEach(dose => addText(`  - ${dose}`, 9, 'normal', [60, 60, 60]));
+    }
+    if (d.contraindications) addText(`Chong chi dinh: ${d.contraindications}`, 10, 'normal', [40, 40, 40]);
+    if (d.side_effects) addText(`Tac dung phu: ${d.side_effects}`, 10, 'normal', [40, 40, 40]);
+    y += 2;
+    addLine();
+  }
+
+  // -- Warnings --
+  if (lastResult.warnings?.length) {
+    addText('LUU Y QUAN TRONG', 12, 'bold', [220, 50, 50]);
+    lastResult.warnings.forEach(w => addText(`! ${w}`, 10, 'normal', [180, 60, 60]));
+    y += 2;
+    addLine();
+  }
+
+  // -- Search Fallback --
+  if (lastResult.search_fallback?.query) {
+    addText('TRA CUU THEM', 12, 'bold', [13, 148, 136]);
+    addText(`Tu khoa tim kiem: ${lastResult.search_fallback.query}`, 10, 'normal', [40, 40, 40]);
+    addText('Long Chau | Vinmec | Pharmacity', 9, 'italic', [90, 90, 90]);
+  }
+
+  // -- Footer --
+  const pagesCount = doc.internal.getNumberOfPages();
+  for (let p = 1; p <= pagesCount; p++) {
+    doc.setPage(p);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(160, 160, 160);
+    doc.text('Drug Scanner', M, H - 8);
+    doc.text(`Trang ${p}/${pagesCount}`, W - M, H - 8, { align: 'right' });
+  }
+
+  const drugName = lastResult.identity?.name || 'DrugScan';
+  doc.save(`${drugName.replace(/[^a-zA-Z0-9\u00C0-\u1EF9\s]/g, '')}_report.pdf`);
+}
+
+// ========== EXPORT: IMAGE ==========
+exportImageButton.addEventListener('click', () => exportImage());
+
+async function exportImage() {
+  if (!resultsDiv || resultsDiv.classList.contains('hidden')) return;
+
+  const origMaxH = resultsDiv.style.maxHeight;
+  const origOverflow = resultsDiv.style.overflow;
+  resultsDiv.style.maxHeight = 'none';
+  resultsDiv.style.overflow = 'visible';
+
+  try {
+    const canvas = await html2canvas(resultsDiv, {
+      backgroundColor: '#0f172a',
+      scale: 2,
+      useCORS: true,
+      logging: false
+    });
+    const link = document.createElement('a');
+    link.download = 'drug-scan-result.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  } catch (err) {
+    console.error('[EXPORT IMAGE] Error:', err);
+    alert('Khong the tai anh. Vui long thu lai.');
+  } finally {
+    resultsDiv.style.maxHeight = origMaxH;
+    resultsDiv.style.overflow = origOverflow;
+  }
+}

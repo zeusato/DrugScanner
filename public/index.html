@@ -32,6 +32,12 @@
         <h2>Khóa API Gemini</h2>
         <p>Để bảo mật, vui lòng nhập khóa API Gemini của bạn. Khóa chỉ được lưu trên thiết bị này.</p>
         <input id="apiKeyInput" type="password" placeholder="Dán khóa API của bạn vào đây">
+        <p style="font-size: 0.85rem; margin-bottom: 1.5rem;">
+          <a href="https://aistudio.google.com/app/apikey" target="_blank"
+            style="color: var(--primary); text-decoration: none;">
+            👉 Lấy khóa API miễn phí tại đây
+          </a>
+        </p>
         <div class="modal-buttons">
           <button id="saveKeyButton">Lưu Khóa</button>
           <button id="closeSettingsButton"
@@ -92,7 +98,21 @@
 
     <!-- Results container -->
     <div id="results" class="results hidden"></div>
+
+    <!-- Export buttons (shown after results) -->
+    <div id="exportActions" class="export-actions hidden">
+      <button id="exportPdfButton" class="export-btn export-pdf">
+        <span class="export-icon">📄</span> Xuất PDF
+      </button>
+      <button id="exportImageButton" class="export-btn export-img">
+        <span class="export-icon">🖼️</span> Tải ảnh
+      </button>
+    </div>
   </div>
+
+  <!-- PDF & Image export libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
   <!-- Import Map -->
   <script type="importmap">
