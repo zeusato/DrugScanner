@@ -39,6 +39,8 @@ let currentDraft = null;
 let isProcessingFile = false;
 let lastResult = null;
 
+const EXPORT_PAGE_BACKGROUND = '#ffffff';
+
 // Instructions for each step
 const INSTRUCTIONS = [
   'Bước 1/2: Chụp ảnh <strong>mặt trước (tên thuốc)</strong>',
@@ -98,7 +100,10 @@ function compressImage(file) {
         const canvas = document.createElement('canvas');
         canvas.width = w;
         canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = EXPORT_PAGE_BACKGROUND;
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
         resolve(canvas.toDataURL('image/jpeg', 0.8));
       };
       img.src = e.target.result;
@@ -421,7 +426,7 @@ async function clearSession() {
 window.addEventListener('DOMContentLoaded', async () => {
   // Service Worker
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('service-worker.js');
+    navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' });
   }
 
   // PWA Install Logic
@@ -496,14 +501,24 @@ async function exportPDF() {
   const CW = W - M * 2;
   let y = M;
 
+  function paintPageBackground() {
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, W, H, 'F');
+  }
+
+  function addPage() {
+    doc.addPage();
+    paintPageBackground();
+    y = M;
+  }
+
   function addText(text, size, style, color, maxW) {
     doc.setFontSize(size);
     doc.setFont('helvetica', style);
     doc.setTextColor(...color);
     const lines = doc.splitTextToSize(text, maxW || CW);
     if (y + lines.length * (size * 0.45) > H - M) {
-      doc.addPage();
-      y = M;
+      addPage();
     }
     doc.text(lines, M, y);
     y += lines.length * (size * 0.45) + 2;
@@ -514,6 +529,26 @@ async function exportPDF() {
     doc.line(M, y, W - M, y);
     y += 4;
   }
+
+  async function flattenImageForPdf(dataUri) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = EXPORT_PAGE_BACKGROUND;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.92));
+      };
+      img.onerror = () => resolve(dataUri);
+      img.src = dataUri;
+    });
+  }
+
+  paintPageBackground();
 
   // -- Header --
   doc.setFillColor(13, 148, 136); // teal-600
@@ -536,7 +571,8 @@ async function exportPDF() {
     const imgW = (CW - 4) / 2;
     const imgH = imgW * 1.1;
     const labels = ['Mat truoc', 'Mat sau / Ma vach'];
-    capturedImages.forEach((dataUri, i) => {
+    const pdfImages = await Promise.all(capturedImages.map(flattenImageForPdf));
+    pdfImages.forEach((dataUri, i) => {
       const x = M + i * (imgW + 4);
       try {
         doc.addImage(dataUri, 'JPEG', x, y, imgW, imgH);
